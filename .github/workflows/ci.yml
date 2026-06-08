@@ -1,0 +1,123 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  IMAGE_NAME: ghcr.io/kajal-nerkar/platomics-converter
+
+jobs:
+
+  # ─────────────────────────────────────────
+  # JOB 1 — Test the application
+  # ─────────────────────────────────────────
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Start server and test endpoints
+        run: |
+          python app/app.py &
+          sleep 2
+
+          HEALTH=$(curl -s http://localhost:8080/health)
+          echo "Health: $HEALTH"
+          [ "$HEALTH" = "OK" ] || exit 1
+
+          RESULT=$(curl -s http://localhost:8080/convert/255/dec/hex)
+          echo "255 dec->hex: $RESULT"
+          [ "$RESULT" = "ff" ] || exit 1
+
+          RESULT=$(curl -s http://localhost:8080/convert/ff/hex/bin)
+          echo "ff hex->bin: $RESULT"
+          [ "$RESULT" = "11111111" ] || exit 1
+
+          RESULT=$(curl -s http://localhost:8080/convert/1010/bin/dec)
+          echo "1010 bin->dec: $RESULT"
+          [ "$RESULT" = "10" ] || exit 1
+
+          echo "All endpoint tests passed."
+
+  # ─────────────────────────────────────────
+  # JOB 2 — Build and push Docker image
+  # ─────────────────────────────────────────
+  build:
+    name: Build & Push Docker Image
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.ref == 'refs/heads/main'
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        run: |
+          docker build \
+            -t ghcr.io/kajal-nerkar/platomics-converter:${{ github.sha }} \
+            -t ghcr.io/kajal-nerkar/platomics-converter:latest \
+            .
+          docker push ghcr.io/kajal-nerkar/platomics-converter:${{ github.sha }}
+          docker push ghcr.io/kajal-nerkar/platomics-converter:latest
+          echo "Image pushed successfully"
+
+  # ─────────────────────────────────────────
+  # JOB 3 — Deploy to Kubernetes
+  # ─────────────────────────────────────────
+  deploy:
+    name: Deploy to Kubernetes
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    environment: production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > ~/.kube/config
+
+      - name: Apply Kubernetes manifests
+        run: |
+          kubectl apply -f k8s/deployment.yaml
+          kubectl apply -f k8s/service.yaml
+          kubectl apply -f k8s/ingress.yaml
+
+      - name: Update image in deployment
+        run: |
+          kubectl set image deployment/converter-app \
+            converter-app=ghcr.io/kajal-nerkar/platomics-converter:${{ github.sha }} \
+            -n converter
+
+      - name: Wait for rollout
+        run: |
+          kubectl rollout status deployment/converter-app -n converter
+          echo "Deployment successful."
