@@ -81,35 +81,31 @@ jobs:
             .
           docker push ghcr.io/kajal-nerkar/platomics-converter:${{ github.sha }}
           docker push ghcr.io/kajal-nerkar/platomics-converter:latest
-          echo "Image pushed successfully"
+          echo "Image pushed to ghcr.io"
 
   # ─────────────────────────────────────────
   # JOB 3 — Deploy to Kubernetes
+  # runs on your local machine (self-hosted runner)
+  # so it can reach Docker Desktop Kubernetes
   # ─────────────────────────────────────────
   deploy:
     name: Deploy to Kubernetes
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     needs: build
     if: github.ref == 'refs/heads/main'
-    environment: production
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up kubectl
-        uses: azure/setup-kubectl@v4
-
-      - name: Configure kubeconfig
+      - name: Create namespace if not exists
         run: |
-          mkdir -p ~/.kube
-          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > ~/.kube/config
+          kubectl get namespace converter || kubectl create namespace converter
 
       - name: Apply Kubernetes manifests
         run: |
-          kubectl apply -f k8s/deployment.yaml
-          kubectl apply -f k8s/service.yaml
-          kubectl apply -f k8s/ingress.yaml
+          kubectl apply -f k8s/deployment-local.yaml
+          kubectl apply -f k8s/service-local.yaml
 
       - name: Update image in deployment
         run: |
@@ -119,5 +115,10 @@ jobs:
 
       - name: Wait for rollout
         run: |
-          kubectl rollout status deployment/converter-app -n converter
+          kubectl rollout status deployment/converter-app -n converter --timeout=120s
           echo "Deployment successful."
+
+      - name: Show running pods
+        run: |
+          kubectl get pods -n converter
+          kubectl get service -n converter

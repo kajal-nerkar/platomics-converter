@@ -6,10 +6,15 @@ metadata:
   labels:
     app: converter-app
 spec:
-  replicas: 2                        # 2 replicas = redundancy, no single point of failure
+  replicas: 2
   selector:
     matchLabels:
       app: converter-app
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
   template:
     metadata:
       labels:
@@ -17,10 +22,10 @@ spec:
     spec:
       containers:
         - name: converter-app
-          image: registry.gitlab.com/YOUR_USERNAME/platomics-converter:latest
+          image: ghcr.io/kajal-nerkar/platomics-converter:latest
+          imagePullPolicy: Always        # always pull latest from ghcr.io
           ports:
             - containerPort: 8080
-          # Health check so Kubernetes knows when the app is ready
           livenessProbe:
             httpGet:
               path: /health
