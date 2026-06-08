@@ -1,9 +1,6 @@
 # Platomics Number Converter
 
 A lightweight HTTP API that converts numbers between **decimal**, **binary**, and **hexadecimal** formats — containerised with Docker, deployed on Kubernetes, and fully automated via GitHub Actions CI/CD.
-
-> **Homework Assignment** for Platomics GmbH — IT Infrastructure Engineer role
-
 ---
 
 ## 📋 Table of Contents
