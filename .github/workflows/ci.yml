@@ -85,8 +85,7 @@ jobs:
 
   # ─────────────────────────────────────────
   # JOB 3 — Deploy to Kubernetes
-  # runs on your local machine (self-hosted runner)
-  # so it can reach Docker Desktop Kubernetes
+  # runs on self-hosted Windows runner
   # ─────────────────────────────────────────
   deploy:
     name: Deploy to Kubernetes
@@ -99,26 +98,37 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Create namespace if not exists
+        shell: powershell
         run: |
-          kubectl get namespace converter || kubectl create namespace converter
+          $ns = kubectl get namespace converter 2>&1
+          if ($LASTEXITCODE -ne 0) {
+            kubectl create namespace converter
+            Write-Host "Namespace converter created"
+          } else {
+            Write-Host "Namespace converter already exists"
+          }
 
       - name: Apply Kubernetes manifests
+        shell: powershell
         run: |
           kubectl apply -f k8s/deployment-local.yaml
           kubectl apply -f k8s/service-local.yaml
 
       - name: Update image in deployment
+        shell: powershell
         run: |
-          kubectl set image deployment/converter-app \
-            converter-app=ghcr.io/kajal-nerkar/platomics-converter:${{ github.sha }} \
+          kubectl set image deployment/converter-app `
+            converter-app=ghcr.io/kajal-nerkar/platomics-converter:${{ github.sha }} `
             -n converter
 
       - name: Wait for rollout
+        shell: powershell
         run: |
           kubectl rollout status deployment/converter-app -n converter --timeout=120s
-          echo "Deployment successful."
+          Write-Host "Deployment successful."
 
       - name: Show running pods
+        shell: powershell
         run: |
           kubectl get pods -n converter
           kubectl get service -n converter
