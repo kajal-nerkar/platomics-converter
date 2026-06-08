@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: converter-service
+  namespace: converter
+spec:
+  selector:
+    app: converter-app             # Routes traffic to pods with this label
+  ports:
+    - protocol: TCP
+      port: 80                     # Service listens on port 80
+      targetPort: 8080             # Forwards to container port 8080
+  type: ClusterIP                  # Internal only - Ingress handles external access

@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: converter-app
+  namespace: converter
+  labels:
+    app: converter-app
+spec:
+  replicas: 2                        # 2 replicas = redundancy, no single point of failure
+  selector:
+    matchLabels:
+      app: converter-app
+  template:
+    metadata:
+      labels:
+        app: converter-app
+    spec:
+      containers:
+        - name: converter-app
+          image: registry.gitlab.com/YOUR_USERNAME/platomics-converter:latest
+          ports:
+            - containerPort: 8080
+          # Health check so Kubernetes knows when the app is ready
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "100m"
+            limits:
+              memory: "128Mi"
+              cpu: "200m"
