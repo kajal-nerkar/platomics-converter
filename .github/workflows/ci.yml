@@ -103,11 +103,16 @@ jobs:
       - name: Install nginx ingress controller
         shell: powershell
         run: |
-          # Check if nginx ingress already installed
-          $ns = kubectl get namespace ingress-nginx 2>&1
-          if ($LASTEXITCODE -ne 0) {
+          # Suppress errors so exit code doesn't kill the step
+          $ErrorActionPreference = "SilentlyContinue"
+          kubectl get namespace ingress-nginx 2>&1 | Out-Null
+          $ingressExists = ($LASTEXITCODE -eq 0)
+          $ErrorActionPreference = "Stop"
+
+          if (-not $ingressExists) {
             Write-Host "Installing nginx ingress controller..."
             kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.10.1/deploy/static/provider/cloud/deploy.yaml
+            if ($LASTEXITCODE -ne 0) { exit 1 }
             Write-Host "Waiting for ingress controller to be ready..."
             kubectl wait --namespace ingress-nginx `
               --for=condition=ready pod `
@@ -117,18 +122,21 @@ jobs:
           } else {
             Write-Host "Nginx ingress controller already installed"
           }
-          exit 0
 
       - name: Create namespace if not exists
         shell: powershell
         run: |
-          try {
-            kubectl create namespace converter 2>&1 | Out-Null
+          $ErrorActionPreference = "SilentlyContinue"
+          kubectl get namespace converter 2>&1 | Out-Null
+          $nsExists = ($LASTEXITCODE -eq 0)
+          $ErrorActionPreference = "Stop"
+
+          if (-not $nsExists) {
+            kubectl create namespace converter
             Write-Host "Namespace converter created"
-          } catch {
-            Write-Host "Namespace may already exist - continuing"
+          } else {
+            Write-Host "Namespace converter already exists"
           }
-          exit 0
 
       - name: Apply Kubernetes manifests
         shell: powershell
