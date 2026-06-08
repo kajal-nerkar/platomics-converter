@@ -100,27 +100,52 @@ jobs:
           kubectl get nodes
           Write-Host "Cluster connection OK"
 
+      - name: Install nginx ingress controller
+        shell: powershell
+        run: |
+          # Check if nginx ingress already installed
+          $ns = kubectl get namespace ingress-nginx 2>&1
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "Installing nginx ingress controller..."
+            kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.10.1/deploy/static/provider/cloud/deploy.yaml
+            Write-Host "Waiting for ingress controller to be ready..."
+            kubectl wait --namespace ingress-nginx `
+              --for=condition=ready pod `
+              --selector=app.kubernetes.io/component=controller `
+              --timeout=120s
+            Write-Host "Nginx ingress controller ready"
+          } else {
+            Write-Host "Nginx ingress controller already installed"
+          }
+          exit 0
+
       - name: Create namespace if not exists
         shell: powershell
         run: |
-          # Use kubectl directly — ignore exit code with try/catch
           try {
             kubectl create namespace converter 2>&1 | Out-Null
             Write-Host "Namespace converter created"
           } catch {
             Write-Host "Namespace may already exist - continuing"
           }
-          # Force exit code 0 regardless
           exit 0
 
       - name: Apply Kubernetes manifests
         shell: powershell
         run: |
-          kubectl apply -f k8s/deployment-local.yaml
+          # Deploy app
+          kubectl apply -f k8s/deployment.yaml
           if ($LASTEXITCODE -ne 0) { exit 1 }
-          kubectl apply -f k8s/service-local.yaml
+
+          # Service (NodePort for direct localhost:30080 access)
+          kubectl apply -f k8s/service.yaml
           if ($LASTEXITCODE -ne 0) { exit 1 }
-          Write-Host "Manifests applied successfully"
+
+          # Ingress (nginx ingress for host-based routing)
+          kubectl apply -f k8s/ingress.yaml
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+          Write-Host "All manifests applied successfully"
 
       - name: Update image in deployment
         shell: powershell
@@ -137,11 +162,28 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit 1 }
           Write-Host "Deployment successful."
 
-      - name: Show running pods
+      - name: Show full deployment status
         shell: powershell
         run: |
-          Write-Host "=== Pods ==="
+          Write-Host ""
+          Write-Host "=== NODES ==="
+          kubectl get nodes
+
+          Write-Host ""
+          Write-Host "=== PODS ==="
           kubectl get pods -n converter
-          Write-Host "=== Services ==="
+
+          Write-Host ""
+          Write-Host "=== SERVICES ==="
           kubectl get service -n converter
-          Write-Host "App available at: http://localhost:30080"
+
+          Write-Host ""
+          Write-Host "=== INGRESS ==="
+          kubectl get ingress -n converter
+
+          Write-Host ""
+          Write-Host "=========================================="
+          Write-Host "App available at:"
+          Write-Host "  NodePort: http://localhost:30080"
+          Write-Host "  Ingress:  http://converter.local"
+          Write-Host "=========================================="

@@ -8,7 +8,7 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-    - host: converter.platomics.local   # Replace with your actual domain
+    - host: converter.local        # add "127.0.0.1 converter.local" to your hosts file
       http:
         paths:
           - path: /
