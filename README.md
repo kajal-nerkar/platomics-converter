@@ -324,6 +324,9 @@ terraform apply
 
 ```
 ---
+## Part 2 — Infrastructure Design
+
+# Please check architecture-diagram.png
 
 ## Technology Choices
 
