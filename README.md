@@ -319,6 +319,9 @@ terraform apply
 ```
 <img width="2588" height="998" alt="image" src="https://github.com/user-attachments/assets/c32e08ed-19b9-4549-a227-4d2b4892c9d5" />
 
+<img width="1960" height="1634" alt="image" src="https://github.com/user-attachments/assets/fe994906-82c2-4475-960d-9d9c9a0b5e84" />
+
+
 ```
 ---
 
