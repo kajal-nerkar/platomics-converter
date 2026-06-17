@@ -104,9 +104,9 @@ platomics-converter/
 │
 ├── k8s/
 │   ├── deployment.yaml             # Production deployment (ghcr.io image, 2 replicas)
-│   ├── deployment-local.yaml       # Local deployment (Docker Desktop)
+│   ├── deployment.yaml             # deployment (Docker Desktop)
 │   ├── service.yaml                # ClusterIP service (production)
-│   ├── service-local.yaml          # NodePort service — exposes localhost:30080
+│   ├── service.yaml                # NodePort service — exposes localhost:30080
 │   └── ingress.yaml                # nginx Ingress — routes converter.local → app
 │
 ├── terraform/
@@ -192,8 +192,8 @@ Push to main
 │  Test    │────▶│  Build & Push       │────▶│  Deploy              │
 │          │     │                     │     │                      │
 │ Python   │     │ docker build        │     │ kubectl apply        │
-│ curl     │     │ push to ghcr.io     │     │ deployment-local     │
-│ /health  │     │                     │     │ service-local        │
+│ curl     │     │ push to ghcr.io     │     │ deployment           │
+│ /health  │     │                     │     │ service              │
 │ /convert │     │ image tagged with   │     │ ingress              │
 │          │     │ commit SHA + latest │     │                      │
 │ ~12s     │     │ ~23s                │     │ ~30s                 │
@@ -252,8 +252,8 @@ kubectl create namespace converter
 kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.10.1/deploy/static/provider/cloud/deploy.yaml
 
 # 4. Apply manifests
-kubectl apply -f k8s/deployment-local.yaml
-kubectl apply -f k8s/service-local.yaml
+kubectl apply -f k8s/deployment.yaml
+kubectl apply -f k8s/service.yaml
 kubectl apply -f k8s/ingress.yaml
 
 # 5. Watch pods come up
